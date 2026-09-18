@@ -1,7 +1,8 @@
 self.addEventListener('install', (e) => {
-  console.log('[Service Worker] Installed');
+  self.skipWaiting(); // บังคับให้ Service Worker ทำงานทันที
 });
 
 self.addEventListener('fetch', (e) => {
-  // ปล่อยผ่านการโหลดข้อมูลปกติ
+  // ปล่อยผ่าน (ดึงข้อมูลใหม่จากเน็ตเสมอ จะได้ไม่อืดเวลาเราแก้โค้ดฝั่ง GAS)
+  return; 
 });
