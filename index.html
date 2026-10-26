@@ -11,18 +11,91 @@
   <meta name="theme-color" content="#0d6efd">
   
   <style>
-    body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background-color: #f0f0f0; }
-    iframe { width: 100%; height: 100%; border: none; }
-    
-    /* UI แถบแจ้งเตือนให้ติดตั้ง */
-    #installBanner { 
-      display: none; position: fixed; bottom: 0; width: 100%; 
-      background: #0d6efd; color: white; text-align: center; 
-      padding: 15px 10px; z-index: 9999; font-family: sans-serif; box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+    body, html { 
+      margin: 0; padding: 0; height: 100%; overflow: hidden; background-color: #f0f0f0; 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
+    
+    /* ให้ iframe เว้นพื้นที่ด้านล่างไว้เล็กน้อย เพื่อไม่ให้โดนแถบบัง */
+    iframe { 
+      width: 100%; height: calc(100% - env(safe-area-inset-bottom)); border: none; 
+    }
+    
+    /* ดีไซน์แถบติดตั้งแบบการ์ดลอยตัว (Floating Card) ไม่เกะกะ */
+    #installBanner { 
+      display: none; 
+      position: fixed; 
+      bottom: 20px; 
+      left: 15px; 
+      right: 15px; 
+      background: #ffffff; 
+      color: #333333; 
+      text-align: left; 
+      padding: 14px 16px; 
+      z-index: 9999; 
+      border-radius: 16px; 
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+      border: 1px solid rgba(0,0,0,0.08);
+      animation: slideUp 0.3s ease-out;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .banner-content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .banner-text {
+      font-size: 13px;
+      line-height: 1.4;
+      color: #495057;
+    }
+
+    .banner-text b {
+      color: #0d6efd;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
     .btn-install { 
-      background: white; color: #0d6efd; border: none; padding: 8px 16px; 
-      border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 5px;
+      background: #0d6efd; 
+      color: white; 
+      border: none; 
+      padding: 8px 14px; 
+      border-radius: 8px; 
+      cursor: pointer; 
+      font-weight: bold; 
+      font-size: 13px;
+      white-space: nowrap;
+      transition: background 0.2s;
+    }
+    
+    .btn-install:active {
+      background: #0b5ed7;
+    }
+
+    .btn-close {
+      background: transparent;
+      border: none;
+      color: #adb5bd;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 0 4px;
+      line-height: 1;
+    }
+
+    .btn-close:hover {
+      color: #495057;
     }
   </style>
 </head>
@@ -31,26 +104,33 @@
   <!-- ดึง Web App (Anesth 5th) มาแสดง -->
   <iframe src="https://script.google.com/macros/s/AKfycbzWB8IRedROnWtFpy08Ss7CsbX2HPcdzqUDGFa1-HumfO-IUJqmBOEI-FfKA3aEJWA/exec"></iframe>
 
-  <!-- แถบแนะนำให้ติดตั้ง (จะโชว์ก็ต่อเมื่อยังไม่ได้ติดตั้ง) -->
+  <!-- แถบแนะนำให้ติดตั้งแบบการ์ดลอย -->
   <div id="installBanner">
-    <div id="installText">ติดตั้งแอปนี้ลงมือถือเพื่อการใช้งานที่รวดเร็ว</div>
-    <button id="installBtn" class="btn-install">ติดตั้ง (Install)</button>
+    <div class="banner-content">
+      <div class="banner-text" id="installText">
+        <b>ติดตั้งแอป Anesth 5th</b> เพื่อการใช้งานที่รวดเร็วและเต็มจอ
+      </div>
+      <div class="btn-group">
+        <button id="installBtn" class="btn-install">ติดตั้ง</button>
+        <button id="closeBtn" class="btn-close" title="ปิด">&times;</button>
+      </div>
+    </div>
   </div>
 
   <script>
-    // 1. ลงทะเบียน Service Worker เพื่อให้มือถือมองว่าเป็นแอป
+    // 1. ลงทะเบียน Service Worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js')
         .then(() => console.log('Service Worker Registered'));
     }
 
-    // 2. Logic การแจ้งเตือนติดตั้ง
     const installBanner = document.getElementById('installBanner');
     const installBtn = document.getElementById('installBtn');
+    const closeBtn = document.getElementById('closeBtn');
     const installText = document.getElementById('installText');
     let deferredPrompt;
 
-    // เช็คระบบ iOS (เนื่องจาก iOS ไม่รองรับปุ่ม Install ตรงๆ ต้องสอนให้กด Share)
+    // เช็คระบบ iOS
     const isIos = () => {
       const userAgent = window.navigator.userAgent.toLowerCase();
       return /iphone|ipad|ipod/.test(userAgent);
@@ -59,26 +139,31 @@
 
     if (isIos() && !isInStandaloneMode()) {
       installBanner.style.display = 'block';
-      installText.innerHTML = "<b>สำหรับ iOS:</b><br>กดปุ่ม Share (แชร์) ด้านล่าง<br>แล้วเลือก <b>'เพิ่มไปยังหน้าจอโฮม'</b> (Add to Home Screen)";
-      installBtn.style.display = 'none'; // ซ่อนปุ่ม เพราะ iOS กดติดตั้งจากปุ่มไม่ได้
+      installText.innerHTML = "<b>วิธีติดตั้งบน iOS:</b> กดปุ่ม Share (แชร์) ด้านล่าง แล้วเลือก <b>'เพิ่มไปยังหน้าจอโฮม'</b>";
+      installBtn.style.display = 'none'; // ซ่อนปุ่มติดตั้งเพราะ iOS ไม่รองรับการสั่งด้วยปุ่ม
     }
 
     // เช็คระบบ Android / Chrome
     window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault(); // ป้องกันไม่ให้เบราว์เซอร์โชว์ Popup ปกติ (เราจะใช้ Banner ของเราเอง)
+      e.preventDefault(); 
       deferredPrompt = e;
-      installBanner.style.display = 'block'; // โชว์ Banner ของเรา
+      installBanner.style.display = 'block'; 
     });
 
     installBtn.addEventListener('click', async () => {
       if (deferredPrompt) {
-        deferredPrompt.prompt(); // โชว์ Popup ติดตั้งของระบบ
+        deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
         if (outcome === 'accepted') {
-          installBanner.style.display = 'none'; // ปิด Banner ถ้าติดตั้งสำเร็จ
+          installBanner.style.display = 'none';
         }
         deferredPrompt = null;
       }
+    });
+
+    // ปุ่มกากบาทสำหรับกดปิด (ถ้าผู้ใช้ยังไม่อยากติดตั้งตอนนี้)
+    closeBtn.addEventListener('click', () => {
+      installBanner.style.display = 'none';
     });
   </script>
 </body>
